@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"io"
@@ -12,7 +13,7 @@ import (
 
 type TagContext struct {
 	sourceExt    string
-	exclude      string
+	excludeList  []string
 	templatePath string
 	templateFile *os.File
 	dryRun       bool
@@ -21,7 +22,7 @@ type TagContext struct {
 func main() {
 	ppath := flag.String("path", ".", "project path")
 	srcExt := flag.String("ext", ".go", "file extention for tagging")
-	exclude := flag.String("exclude", "vendor", "exclude folder")
+	excludes := flag.String("excludes", "vendor", "exclude folders")
 	tpath := flag.String("t", "", "template file path")
 	dryRun := flag.Bool("d", false, "dry run")
 	flag.Parse()
@@ -32,13 +33,15 @@ func main() {
 		return
 	}
 
+	excludeList := strings.Split(*excludes, " ")
+
 	tfile, err := os.OpenFile(*tpath, os.O_RDONLY, 0666)
 	if err != nil {
 		panic(err)
 	}
 	defer tfile.Close()
 
-	t := TagContext{sourceExt: *srcExt, exclude: *exclude, templatePath: *tpath, templateFile: tfile, dryRun: *dryRun}
+	t := TagContext{sourceExt: *srcExt, excludeList: excludeList, templatePath: *tpath, templateFile: tfile, dryRun: *dryRun}
 
 	if *dryRun {
 		fmt.Println("Following files can be updated")
@@ -53,8 +56,14 @@ func main() {
 }
 
 func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
-	if (f.Name() == t.exclude || f.Name() == ".git" || f.Name() == ".svn" || f.Name() == "..") && f.IsDir() {
+	if (f.Name() == ".git" || f.Name() == ".svn" || f.Name() == "..") && f.IsDir() {
 		return filepath.SkipDir
+	}
+
+	for _, exclude := range t.excludeList {
+		if f.Name() == exclude {
+			return filepath.SkipDir
+		}
 	}
 
 	if !f.IsDir() && filepath.Ext(f.Name()) == t.sourceExt && f.Size() > 0 {
@@ -85,6 +94,12 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 		t.templateFile.Seek(0, 0)
 		file.Seek(0, 0)
 
+		compilerFlagExist, flags, err := t.checkCompilerFlags(file)
+		if err != nil {
+			return err
+		}
+		file.Seek(0, 0)
+
 		tempFile := path + ".tmp"
 		tFile, err := os.OpenFile(tempFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
 		if err != nil {
@@ -92,12 +107,20 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 		}
 		defer tFile.Close()
 
+		reader := bufio.NewReader(file)
+		if compilerFlagExist {
+			tFile.Write(flags)
+			tFile.Write([]byte("\n\n"))
+			_, _, err = reader.ReadLine()
+			_, _, err = reader.ReadLine()
+		}
+
 		_, err = io.Copy(tFile, t.templateFile)
 		if err != nil {
 			return err
 		}
 
-		_, err = io.Copy(tFile, file)
+		_, err = io.Copy(tFile, reader)
 		if err != nil {
 			return err
 		}
@@ -130,4 +153,23 @@ func (t *TagContext) checkTemplateHeader(target *os.File) (bool, error) {
 	}
 
 	return false, nil
+}
+
+func (t *TagContext) checkCompilerFlags(target *os.File) (bool, []byte, error) {
+
+	reader := bufio.NewReader(target)
+	buf, _, err := reader.ReadLine()
+	if err != nil {
+		return false, nil, err
+	}
+
+	if strings.HasPrefix(string(buf), "//") && (strings.Contains(string(buf), "build") ||
+		strings.Contains(string(buf), "unix") ||
+		strings.Contains(string(buf), "linux") ||
+		strings.Contains(string(buf), "windows") ||
+		strings.Contains(string(buf), "darwin") ||
+		strings.Contains(string(buf), "freebsd")) {
+		return true, buf, nil
+	}
+	return false, nil, nil
 }
