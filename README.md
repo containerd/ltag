@@ -4,6 +4,7 @@ Prepends project files with given template.
 
 - Can be used for adding licence or copyright information on src files of project.
 - Skip file, if template (as provided) already present 
+- Take cares of Golang compiler flags.
 
 #### Install
 
