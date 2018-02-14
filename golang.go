@@ -14,6 +14,7 @@ type golangApplier struct {
 }
 
 func (g *golangApplier) CheckHeader(target *os.File, t *TagContext) (bool, error) {
+
 	//Check compiler flags.
 	cFlags, cbuf, err := g.checkSpecialConditions(target)
 	if err != nil {
@@ -54,6 +55,7 @@ func (g *golangApplier) CheckHeader(target *os.File, t *TagContext) (bool, error
 }
 
 func (g *golangApplier) ApplyHeader(path string, t *TagContext) error {
+
 	file, err := os.OpenFile(path, os.O_RDONLY, 0666)
 	if err != nil {
 		return err

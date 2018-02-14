@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -50,14 +47,15 @@ func main() {
 	verbose := flag.Bool("v", false, "verbose output")
 	flag.Parse()
 
-	excludeList := strings.Split(*excludes, " ")
-
 	//Check for kind of templates available.
 	//Dockerfile? shell script? golang? Makefile?
-	dTemplateFile := filepath.Join(*tpath, "Dockerfile.txt")
+	dTemplateFile := filepath.Join(*tpath, "dockerfile.txt")
 	dTFile, err := os.OpenFile(dTemplateFile, os.O_RDONLY, 0666)
 	if err != nil {
-		fmt.Println("No template file for Dockerfile")
+		fmt.Println("No template file for Dockerfile", dTemplateFile)
+	}
+	if dTFile != nil {
+		defer dTFile.Close()
 	}
 
 	goTemplateFile := filepath.Join(*tpath, "go.txt")
@@ -65,22 +63,33 @@ func main() {
 	if err != nil {
 		fmt.Println("No template file for golang files")
 	}
+	if goTFile != nil {
+		defer goTFile.Close()
+	}
 
-	bashTemplateFile := filepath.Join(*tpath, "sh.txt")
+	bashTemplateFile := filepath.Join(*tpath, "bash.txt")
 	bashTFile, err := os.OpenFile(bashTemplateFile, os.O_RDONLY, 0666)
 	if err != nil {
 		fmt.Println("No template file for bash scripts")
 	}
+	if bashTFile != nil {
+		defer bashTFile.Close()
+	}
 
-	makeTemplateFile := filepath.Join(*tpath, "Makefile.txt")
+	makeTemplateFile := filepath.Join(*tpath, "makefile.txt")
 	makeTFile, err := os.OpenFile(makeTemplateFile, os.O_RDONLY, 0666)
 	if err != nil {
 		fmt.Println("No template file for Makefile")
 	}
+	if makeTFile != nil {
+		defer makeTFile.Close()
+	}
+
+	excludeList := strings.Split(*excludes, " ")
 
 	templateFiles := TemplateFiles{mTemplateFile: makeTFile, shTemplateFile: bashTFile, goTemplateFile: goTFile, dTemplateFile: dTFile}
 
-	t := TagContext{sourceExt: *srcExt, excludeList: excludeList, templateFiles: templateFiles, dryRun: *dryRun}
+	t := TagContext{sourceExt: *srcExt, excludeList: excludeList, templateFiles: templateFiles, templatePath: *tpath, dryRun: *dryRun}
 
 	//TODO:
 	// itterate to all template file handlers, if not nill defer Close.
@@ -103,13 +112,19 @@ func main() {
 }
 
 func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
+
+	var applier Applier
+	processed := false
+
 	if (f.Name() == ".git" || f.Name() == ".svn" || f.Name() == "..") && f.IsDir() {
 		return filepath.SkipDir
 	}
 
-	for _, exclude := range t.excludeList {
-		if f.Name() == exclude {
-			return filepath.SkipDir
+	if f.IsDir() {
+		for _, exclude := range t.excludeList {
+			if f.Name() == exclude {
+				return filepath.SkipDir
+			}
 		}
 	}
 
@@ -121,90 +136,50 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 		}
 		defer file.Close()
 
-		//Check type of file & use template file accordingly.
-		// if ext .go
-		// 	- mark it go.
-		// first part is Makefile
-		//	- Mark it makefile.
-		// first part or second part containers Dockerfile.
-		//	- Mark it dockerfile
-		// if second part .sh or No ext but first line container "!/bin/bash"
-		//	- 	mark is bash.
 		fname := strings.Split(f.Name(), ".")
-		if fname[1] == "go" {
-			ApplyGoTemplate()
-			return nil
-		}
-		if fname[0] == "Makefile" {
-			ApplyMakefileTemplate()
-			return nil
-		}
-		if fname[0] == "Dockerfile" || fname[1] == "Dockefile" {
-			ApplyDockerfileTemplate()
-			return nil
-		}
-		if fname[1] == ".sh" || fname[1] == "" {
-			ApplyBashTemplate()
-			return nil
-		}
+		if len(fname) == 1 {
+			if fname[0] == "Makefile" {
+				applier = &makefileApplier{}
+				processed = true
+			} else if fname[0] == "Dockerfile" {
+				applier = &dockerfileApplier{}
+				processed = true
+			} else { // No extention.
+				applier = &bashApplier{}
+				processed = true
+			}
+		} else { // Check extenstions apart from makefile.
 
-		t.templateFile.Seek(0, 0)
-
-		headerExist, err := t.checkTemplateHeader(file)
+			if fname[0] == "Makefile" {
+				applier = &makefileApplier{}
+				processed = true
+			}
+			if fname[1] == "go" {
+				applier = &golangApplier{}
+				processed = true
+			}
+			if strings.ToLower(fname[1]) == "dockerfile" {
+				applier = &dockerfileApplier{}
+				processed = true
+			}
+			if fname[1] == "sh" {
+				applier = &bashApplier{}
+				processed = true
+			}
+		}
+		if !processed {
+			return nil
+		}
+		processed = false
+		headerExist, err := applier.CheckHeader(file, t)
 		if err != nil {
 			return err
 		}
-
 		if headerExist {
 			return nil
 		}
 
-		if t.dryRun {
-			t.outfileList = append(t.outfileList, path)
-			return nil
-		}
-
-		//Reset the read pointers to begining of file.
-		t.templateFile.Seek(0, 0)
-		file.Seek(0, 0)
-
-		sFlags, flags, err := t.checkSpecialConditions(file)
-		if err != nil {
-			return err
-		}
-		file.Seek(0, 0)
-
-		tempFile := path + ".tmp"
-		tFile, err := os.OpenFile(tempFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
-		if err != nil {
-			return err
-		}
-		defer tFile.Close()
-
-		reader := bufio.NewReader(file)
-		if sFlags == CompilerFlags {
-			tFile.Write(flags)
-			tFile.Write([]byte("\n\n"))
-			_, _, err = reader.ReadLine()
-			_, _, err = reader.ReadLine()
-		}
-
-		if sFlags == AutoGenerated {
-			//This should not hit.
-			panic(err)
-		}
-
-		_, err = io.Copy(tFile, t.templateFile)
-		if err != nil {
-			return err
-		}
-
-		_, err = io.Copy(tFile, reader)
-		if err != nil {
-			return err
-		}
-
-		err = os.Rename(tempFile, path)
+		err = applier.ApplyHeader(path, t)
 		if err != nil {
 			return err
 		}
@@ -212,73 +187,4 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 		t.outfileList = append(t.outfileList, path)
 	}
 	return nil
-}
-
-func (t *TagContext) checkTemplateHeader(target *os.File) (bool, error) {
-	//Check compiler flags.
-	cFlags, cbuf, err := t.checkSpecialConditions(target)
-	if err != nil {
-		return false, err
-	}
-	target.Seek(0, 0)
-
-	tbuf, err := ioutil.ReadFile(t.templatePath)
-	if err != nil {
-		return false, err
-	}
-
-	if cFlags == AutoGenerated {
-		return true, nil
-	}
-
-	var templateBuf string
-	if cFlags == CompilerFlags {
-		templateBuf = fmt.Sprintf("%s%s%s", cbuf, "\n\n", tbuf)
-	} else {
-		templateBuf = string(tbuf)
-	}
-
-	targetBuf := make([]byte, len(templateBuf))
-
-	n, err := target.Read(targetBuf)
-	if err != nil {
-		return false, err
-	}
-
-	if n == len(templateBuf) {
-		if strings.Compare(string(templateBuf), string(targetBuf)) == 0 {
-			return true, nil
-		}
-	}
-
-	return false, nil
-}
-
-// Checks for
-// - golang compiler flags
-// - autogenerated files
-func (t *TagContext) checkSpecialConditions(target *os.File) (uint8, []byte, error) {
-
-	reader := bufio.NewReader(target)
-	buf, _, err := reader.ReadLine()
-	if err != nil {
-		return NormalFiles, nil, err
-	}
-
-	// checks for Package comments as per https://blog.golang.org/godoc-documenting-go-code
-	if strings.HasPrefix(string(buf), "//") &&
-		(strings.Contains(string(buf), "build") ||
-			strings.Contains(string(buf), "unix") ||
-			strings.Contains(string(buf), "linux") ||
-			strings.Contains(string(buf), "windows") ||
-			strings.Contains(string(buf), "darwin") ||
-			strings.Contains(string(buf), "freebsd")) &&
-		!strings.Contains(string(buf), "Package") {
-		return CompilerFlags, buf, nil
-	}
-	if strings.HasPrefix(string(buf), "//") &&
-		(strings.Contains(string(buf), "DO NOT EDIT")) {
-		return AutoGenerated, nil, nil
-	}
-	return NormalFiles, nil, nil
 }

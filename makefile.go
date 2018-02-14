@@ -42,7 +42,7 @@ func (g *makefileApplier) ApplyHeader(path string, t *TagContext) error {
 	}
 	defer file.Close()
 
-	t.templateFiles.goTemplateFile.Seek(0, 0)
+	t.templateFiles.mTemplateFile.Seek(0, 0)
 
 	headerExist, err := g.CheckHeader(file, t)
 	if err != nil {
@@ -59,7 +59,7 @@ func (g *makefileApplier) ApplyHeader(path string, t *TagContext) error {
 	}
 
 	//Reset the read pointers to begining of file.
-	t.templateFiles.goTemplateFile.Seek(0, 0)
+	t.templateFiles.mTemplateFile.Seek(0, 0)
 	file.Seek(0, 0)
 
 	tempFile := path + ".tmp"
@@ -70,7 +70,7 @@ func (g *makefileApplier) ApplyHeader(path string, t *TagContext) error {
 	defer tFile.Close()
 
 	reader := bufio.NewReader(file)
-
+	t.templateFiles.mTemplateFile.Seek(0, 0)
 	_, err = io.Copy(tFile, t.templateFiles.mTemplateFile)
 	if err != nil {
 		return err

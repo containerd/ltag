@@ -42,7 +42,7 @@ func (g *dockerfileApplier) ApplyHeader(path string, t *TagContext) error {
 	}
 	defer file.Close()
 
-	t.templateFiles.goTemplateFile.Seek(0, 0)
+	t.templateFiles.dTemplateFile.Seek(0, 0)
 
 	headerExist, err := g.CheckHeader(file, t)
 	if err != nil {
@@ -59,7 +59,7 @@ func (g *dockerfileApplier) ApplyHeader(path string, t *TagContext) error {
 	}
 
 	//Reset the read pointers to begining of file.
-	t.templateFiles.goTemplateFile.Seek(0, 0)
+	t.templateFiles.dTemplateFile.Seek(0, 0)
 	file.Seek(0, 0)
 
 	tempFile := path + ".tmp"
@@ -71,7 +71,8 @@ func (g *dockerfileApplier) ApplyHeader(path string, t *TagContext) error {
 
 	reader := bufio.NewReader(file)
 
-	_, err = io.Copy(tFile, t.templateFiles.mTemplateFile)
+	t.templateFiles.dTemplateFile.Seek(0, 0)
+	_, err = io.Copy(tFile, t.templateFiles.dTemplateFile)
 	if err != nil {
 		return err
 	}
