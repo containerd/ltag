@@ -73,11 +73,6 @@ func (g *golangApplier) ApplyHeader(path string, t *TagContext) error {
 		return nil
 	}
 
-	if t.dryRun {
-		t.outfileList = append(t.outfileList, path)
-		return nil
-	}
-
 	//Reset the read pointers to begining of file.
 	t.templateFiles.goTemplateFile.Seek(0, 0)
 	file.Seek(0, 0)
