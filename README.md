@@ -4,8 +4,10 @@ Prepends project files with given template.
 
 - Can be used for adding licence or copyright information on src files of project.
 - Skip file, if template (as provided) already present 
-- Take cares of Golang compiler flags.
-- Take cares of Golang Package comments too.
+- Supports Golang, Dockerfile, Makefiles and bash scripts
+      - Take cares of Golang compiler flags.
+      - Take cares of Golang Package comments too.
+
 
 #### Install
 
@@ -17,17 +19,18 @@ go get github.com/kunalkushwaha/ltag
 #### Usage
 ```
 $ ltag
-template path missing
-Usage of ./ltag:
-  -d    dry run
-  -exclude string
-        exclude folder (default "vendor")
-  -ext string
-        file extention for tagging (default ".go")
+$ ltag --help
+Usage of ltag:
+  -check
+        check files missing header
+  -excludes string
+        exclude folders (default "vendor")
   -path string
         project path (default ".")
   -t string
-        template file path
+        template files path (default "./template")
+  -v    verbose output
+
 ```
 
 ### Example
