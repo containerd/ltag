@@ -95,8 +95,7 @@ func main() {
 		templatePath:  *tpath,
 		dryRun:        *dryRun}
 
-	err = filepath.Walk(*ppath, t.tagFiles)
-	if err != nil {
+	if err = filepath.Walk(*ppath, t.tagFiles); err != nil {
 		panic(err)
 	}
 
@@ -108,6 +107,9 @@ func main() {
 		for _, path := range t.outfileList {
 			fmt.Println(path)
 		}
+	}
+	if *dryRun && len(t.outfileList) > 0 {
+		os.Exit(1)
 	}
 }
 
@@ -145,10 +147,12 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 			if f.Mode()&IsExecutable != 0 && t.templateFiles.shTemplateFile != nil {
 				applier = &bashApplier{}
 				processed = true
-			} else if fname[0] == "Makefile" && t.templateFiles.mTemplateFile != nil {
+			}
+			if fname[0] == "Makefile" && t.templateFiles.mTemplateFile != nil {
 				applier = &makefileApplier{}
 				processed = true
-			} else if strings.ToLower(fname[0]) == "dockerfile" && t.templateFiles.dTemplateFile != nil {
+			}
+			if strings.ToLower(fname[0]) == "dockerfile" && t.templateFiles.dTemplateFile != nil {
 				applier = &dockerfileApplier{}
 				processed = true
 			}
@@ -162,7 +166,7 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 				processed = true
 			}
 			if strings.ToLower(fname[0]) == "makefile" && t.templateFiles.mTemplateFile != nil {
-				applier = &dockerfileApplier{}
+				applier = &makefileApplier{}
 				processed = true
 			}
 			if fname[1] == "sh" && t.templateFiles.shTemplateFile != nil {
