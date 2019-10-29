@@ -1,0 +1,4 @@
+# syntax=docker/dockerfile:1.1.3-experimental
+# some comment here
+FROM scratch
+LABEL foo=bar

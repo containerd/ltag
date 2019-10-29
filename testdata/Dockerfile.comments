@@ -1,0 +1,4 @@
+# this is not a directive = test
+# this is a comment
+FROM scratch
+LABEL foo=bar
