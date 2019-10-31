@@ -1,0 +1,7 @@
+# directive=one
+# directive=two
+# directive=three
+# directive=four
+# some comment here
+FROM scratch
+LABEL foo=bar
