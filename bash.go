@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -42,7 +43,7 @@ func (g *bashApplier) CheckHeader(target *os.File, t *TagContext) (bool, error) 
 	}
 
 	if n == len(templateBuf) {
-		if strings.Compare(string(templateBuf), string(targetBuf)) == 0 {
+		if strings.Compare(templateBuf, string(targetBuf)) == 0 {
 			return true, nil
 		}
 	}
@@ -90,7 +91,7 @@ func (g *bashApplier) ApplyHeader(path string, t *TagContext) error {
 	if sbFlag {
 		tFile.Write(sbBuf)
 		tFile.Write([]byte("\n\n"))
-		_, _, err = reader.ReadLine()
+		_, err = reader.Discard(len(sbBuf))
 	}
 
 	t.templateFiles.shTemplateFile.Seek(0, 0)
@@ -121,6 +122,8 @@ func (g *bashApplier) ApplyHeader(path string, t *TagContext) error {
 	return nil
 }
 
+var parserSheBang = regexp.MustCompile(`^#!(.*)`)
+
 func (g *bashApplier) checkSheBang(target *os.File) (bool, []byte, error) {
 	reader := bufio.NewReader(target)
 	buf, _, err := reader.ReadLine()
@@ -128,9 +131,7 @@ func (g *bashApplier) checkSheBang(target *os.File) (bool, []byte, error) {
 		return false, nil, err
 	}
 
-	if strings.HasPrefix(string(buf), "#!") &&
-		(strings.Contains(string(buf), "bash") ||
-			strings.Contains(string(buf), "sh")) {
+	if parserSheBang.Match(buf) {
 		return true, buf, nil
 	}
 

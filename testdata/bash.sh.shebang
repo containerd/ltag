@@ -1,0 +1,3 @@
+#!/bin/sh
+# this is a comment
+echo "Hello!"
