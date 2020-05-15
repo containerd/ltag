@@ -118,6 +118,10 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 	var applier Applier
 	processed := false
 
+	if (f.Mode() & os.ModeSymlink) != 0 { // skip symlinks
+		return nil
+	}
+
 	if (f.Name() == ".git" || f.Name() == ".svn" || f.Name() == "..") && f.IsDir() {
 		return filepath.SkipDir
 	}
