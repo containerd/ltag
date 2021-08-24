@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -16,7 +15,7 @@ type golangApplier struct {
 func (g *golangApplier) CheckHeader(target *os.File, t *TagContext) (bool, error) {
 
 	//Check compiler flags.
-	cFlags, cbuf, err := g.checkSpecialConditions(target)
+	cFlags, cbufs, err := g.checkSpecialConditions(target)
 	if err != nil {
 		return false, err
 	}
@@ -33,7 +32,11 @@ func (g *golangApplier) CheckHeader(target *os.File, t *TagContext) (bool, error
 
 	var templateBuf string
 	if cFlags == CompilerFlags {
-		templateBuf = fmt.Sprintf("%s%s%s", cbuf, "\n\n", tbuf)
+		for _, cbuf := range cbufs {
+			templateBuf += string(cbuf) + "\n"
+		}
+		templateBuf += "\n"
+		templateBuf += string(tbuf)
 	} else {
 		templateBuf = string(tbuf)
 	}
@@ -92,9 +95,11 @@ func (g *golangApplier) ApplyHeader(path string, t *TagContext) error {
 
 	reader := bufio.NewReader(file)
 	if sFlags == CompilerFlags {
-		tFile.Write(flags)
-		tFile.Write([]byte("\n\n"))
-		_, _, err = reader.ReadLine()
+		for _, f := range flags {
+			tFile.Write(f)
+			tFile.Write([]byte("\n"))
+			_, _, err = reader.ReadLine()
+		}
 		_, _, err = reader.ReadLine()
 	}
 
@@ -120,13 +125,23 @@ func (g *golangApplier) ApplyHeader(path string, t *TagContext) error {
 	return nil
 }
 
-func (g *golangApplier) checkSpecialConditions(target *os.File) (uint8, []byte, error) {
+func (g *golangApplier) checkSpecialConditions(target *os.File) (uint8, [][]byte, error) {
 	reader := bufio.NewReader(target)
 	buf, _, err := reader.ReadLine()
 	if err != nil {
 		return NormalFiles, nil, err
 	}
 
+	// Go 1.17 compiler flags (e.g., `//go:build !windows`)
+	if strings.HasPrefix(string(buf), "//go:") {
+		// read next line too: (`// +build !windows`)
+		if buf2, _, err := reader.ReadLine(); err == nil && strings.HasPrefix(string(buf2), "// +build ") {
+			return CompilerFlags, [][]byte{buf, buf2}, nil
+		}
+		return CompilerFlags, [][]byte{buf}, nil
+	}
+
+	// Old compiler flags (e.g., `// +build !windows`)
 	// checks for Package comments as per https://blog.golang.org/godoc-documenting-go-code
 	if strings.HasPrefix(string(buf), "//") &&
 		(strings.Contains(string(buf), "build") ||
@@ -136,7 +151,7 @@ func (g *golangApplier) checkSpecialConditions(target *os.File) (uint8, []byte, 
 			strings.Contains(string(buf), "darwin") ||
 			strings.Contains(string(buf), "freebsd")) &&
 		!strings.Contains(string(buf), "Package") {
-		return CompilerFlags, buf, nil
+		return CompilerFlags, [][]byte{buf}, nil
 	}
 	if strings.HasPrefix(string(buf), "//") &&
 		(strings.Contains(string(buf), "DO NOT EDIT")) {
