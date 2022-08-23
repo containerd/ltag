@@ -1,0 +1,6 @@
+// +build amd64 arm64
+// +build !static_build
+// +build !gccgo
+
+// Package plugin does something.
+package plugin
