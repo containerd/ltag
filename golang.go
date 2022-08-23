@@ -31,7 +31,7 @@ func (g *golangApplier) CheckHeader(target *os.File, t *TagContext) (bool, error
 
 	var templateBuf string
 	if cFlags == CompilerFlags {
-		templateBuf = strings.Join(cbufs, "\n")
+		templateBuf = strings.Join(cbufs, "\n") + "\n"
 		templateBuf += "\n"
 		templateBuf += string(tbuf)
 	} else {
@@ -96,6 +96,7 @@ func (g *golangApplier) ApplyHeader(path string, t *TagContext) error {
 			tFile.WriteString(f + "\n")
 			_, _, err = reader.ReadLine()
 		}
+		tFile.WriteString("\n")
 		_, _, err = reader.ReadLine()
 	}
 

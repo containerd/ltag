@@ -15,6 +15,7 @@ func TestGolangApplier_ApplyHeader(t *testing.T) {
 	files := []string{
 		"go.basic",
 		"go.generated",
+		"go.single-buildtag",
 	}
 
 	g := golangApplier{}
@@ -47,12 +48,20 @@ func TestGolangApplier_CheckHeader(t *testing.T) {
 			expected: true, // Generated files are not checked, and always "ok"
 		},
 		{
+			fileName: "go.single-buildtag",
+			expected: false,
+		},
+		{
 			fileName: "go.basic.golden",
 			expected: true, // Generated files are not checked, and always "ok"
 		},
 		{
 			fileName: "go.generated.golden",
 			expected: true, // Generated files are not checked, and always "ok"
+		},
+		{
+			fileName: "go.single-buildtag.golden",
+			expected: true,
 		},
 	}
 	g := golangApplier{}
