@@ -12,11 +12,12 @@ Prepends project files with given template.
 #### Install
 
 ```
-go get github.com/kunalkushwaha/ltag
+go install github.com/kunalkushwaha/ltag@latest
 ```
 
 #### Usage
-```
+
+``` console
 $ ltag
 $ ltag --help
 Usage of ltag:
