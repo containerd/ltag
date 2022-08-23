@@ -108,7 +108,6 @@ func (g *bashApplier) ApplyHeader(path string, t *TagContext) error {
 	if err != nil {
 		return err
 	}
-	//	info.Mode
 
 	err = os.Rename(tempFile, path)
 	if err != nil {
