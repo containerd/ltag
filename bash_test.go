@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -10,16 +9,11 @@ import (
 	"testing"
 )
 
-func TestBashApplier_ApplyHeader(t *testing.T){
+func TestBashApplier_ApplyHeader(t *testing.T) {
 	tc := newBashTagContext(t)
-	defer func() { _ = tc.templateFiles.dTemplateFile.Close()}()
+	defer func() { _ = tc.templateFiles.dTemplateFile.Close() }()
 
-
-	tmpDir, err := ioutil.TempDir("", t.Name())
-	if err != nil {
-		t.Fatalf("failed to create temp directory")
-	}
-	defer func() { _ = os.RemoveAll(tmpDir)}()
+	tmpDir := t.TempDir()
 
 	files := []string{
 		"bash.simple",
@@ -33,11 +27,11 @@ func TestBashApplier_ApplyHeader(t *testing.T){
 	d := bashApplier{}
 	for _, f := range files {
 		fileName := f
-		t.Run(fileName, func(t *testing.T){
+		t.Run(fileName, func(t *testing.T) {
 			testfile := filepath.Join(tmpDir, fileName)
 			copyBashFile(t, "./testdata/"+fileName, testfile)
 
-			err = d.ApplyHeader(testfile, &tc)
+			err := d.ApplyHeader(testfile, &tc)
 			if err != nil {
 				t.Fatalf("failed to apply header to %s: %+v", testfile, err)
 			}
@@ -46,7 +40,7 @@ func TestBashApplier_ApplyHeader(t *testing.T){
 	}
 }
 
-func TestBashFileApplier_CheckHeader(t *testing.T){
+func TestBashFileApplier_CheckHeader(t *testing.T) {
 	files := []string{
 		// The non-golden files don't have a header present
 		"bash.simple",
@@ -67,11 +61,11 @@ func TestBashFileApplier_CheckHeader(t *testing.T){
 
 	d := bashApplier{}
 	tc := newBashTagContext(t)
-	defer func() { _ = tc.templateFiles.dTemplateFile.Close()}()
+	defer func() { _ = tc.templateFiles.dTemplateFile.Close() }()
 	for _, f := range files {
 		fileName := f
-		t.Run(fileName, func(t *testing.T){
-			f, err := os.Open("./testdata/"+ fileName)
+		t.Run(fileName, func(t *testing.T) {
+			f, err := os.Open("./testdata/" + fileName)
 			if err != nil {
 				t.Fatalf("failed to optn file %s: %+v", fileName, err)
 			}
@@ -88,36 +82,36 @@ func TestBashFileApplier_CheckHeader(t *testing.T){
 	}
 }
 
-func newBashTagContext(t *testing.T) TagContext{
+func newBashTagContext(t *testing.T) TagContext {
 	t.Helper()
-	templateFile, err := loadTemplate( "./testdata/templates/", "bash.txt")
+	templateFile, err := loadTemplate("./testdata/templates/", "bash.txt")
 	if err != nil {
 		t.Fatalf("failed to load bash template")
 	}
 	return TagContext{
 		templateFiles: TemplateFiles{shTemplateFile: templateFile},
-		templatePath:   "./testdata/templates/",
+		templatePath:  "./testdata/templates/",
 	}
 }
 
 func copyBashFile(t *testing.T, src, dst string) {
 	t.Helper()
-	input, err := ioutil.ReadFile(src)
+	input, err := os.ReadFile(src)
 	if err != nil {
 		t.Fatalf("failed to read %s: %+v", src, err)
 	}
-	err = ioutil.WriteFile(dst, input, 0777)
+	err = os.WriteFile(dst, input, 0777)
 	if err != nil {
 		t.Fatalf("failed to write %s: %+v", dst, err)
 	}
 }
 
 func compareBashFiles(t *testing.T, a, b string) {
-	contentA, err := ioutil.ReadFile(a)
+	contentA, err := os.ReadFile(a)
 	if err != nil {
 		t.Fatalf("failed to read file %s: %+v", a, err)
 	}
-	contentB, err := ioutil.ReadFile(b)
+	contentB, err := os.ReadFile(b)
 	if err != nil {
 		t.Fatalf("failed to read golden file %s: %+v", b, err)
 	}
