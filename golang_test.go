@@ -3,7 +3,6 @@ package main
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -15,6 +14,7 @@ func TestGolangApplier_ApplyHeader(t *testing.T) {
 
 	files := []string{
 		"go.basic",
+		"go.generated",
 	}
 
 	g := golangApplier{}
@@ -34,31 +34,44 @@ func TestGolangApplier_ApplyHeader(t *testing.T) {
 }
 
 func TestGolangApplier_CheckHeader(t *testing.T) {
-	files := []string{
-		// The non-golden files don't have a header present
-		"go.basic",
-
-		// The golden files should have the header present
-		"go.basic.golden",
+	tests := []struct {
+		fileName string
+		expected bool
+	}{
+		{
+			fileName: "go.basic",
+			expected: false,
+		},
+		{
+			fileName: "go.generated",
+			expected: true, // Generated files are not checked, and always "ok"
+		},
+		{
+			fileName: "go.basic.golden",
+			expected: true, // Generated files are not checked, and always "ok"
+		},
+		{
+			fileName: "go.generated.golden",
+			expected: true, // Generated files are not checked, and always "ok"
+		},
 	}
-
 	g := golangApplier{}
-	tc := newGolangTagContext(t)
-	defer func() { _ = tc.templateFiles.dTemplateFile.Close() }()
-	for _, f := range files {
-		fileName := f
-		t.Run(fileName, func(t *testing.T) {
-			f, err := os.Open("./testdata/" + fileName)
+	tagContext := newGolangTagContext(t)
+	defer func() { _ = tagContext.templateFiles.dTemplateFile.Close() }()
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.fileName, func(t *testing.T) {
+			f, err := os.Open("./testdata/" + tc.fileName)
 			if err != nil {
-				t.Fatalf("failed to optn file %s: %+v", fileName, err)
+				t.Fatalf("failed to open file %s: %+v", tc.fileName, err)
 			}
 			defer func() { _ = f.Close() }()
-			found, err := g.CheckHeader(f, &tc)
+			found, err := g.CheckHeader(f, &tagContext)
+
 			if err != nil {
 				t.Fatalf("failed to check header: %+v", err)
 			}
-			expected := strings.HasSuffix(fileName, ".golden")
-			if found != expected {
+			if found != tc.expected {
 				t.Fail()
 			}
 		})
