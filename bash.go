@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,14 +15,14 @@ type bashApplier struct {
 
 func (g *bashApplier) CheckHeader(target *os.File, t *TagContext) (bool, error) {
 
-	//Check compiler flags.
+	// Check compiler flags.
 	sbFlag, sbBuf, err := g.checkSheBang(target)
 	if err != nil {
 		return false, err
 	}
 	target.Seek(0, 0)
 
-	tbuf, err := ioutil.ReadFile(filepath.Join(t.templatePath, "bash.txt"))
+	tbuf, err := os.ReadFile(filepath.Join(t.templatePath, "bash.txt"))
 	if err != nil {
 		return false, err
 	}
@@ -70,7 +69,7 @@ func (g *bashApplier) ApplyHeader(path string, t *TagContext) error {
 		return nil
 	}
 
-	//Reset the read pointers to begining of file.
+	// Reset the read pointers to begining of file.
 	t.templateFiles.goTemplateFile.Seek(0, 0)
 	file.Seek(0, 0)
 
@@ -109,7 +108,6 @@ func (g *bashApplier) ApplyHeader(path string, t *TagContext) error {
 	if err != nil {
 		return err
 	}
-	//	info.Mode
 
 	err = os.Rename(tempFile, path)
 	if err != nil {

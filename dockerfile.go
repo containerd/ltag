@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -21,7 +20,7 @@ func (g *dockerfileApplier) CheckHeader(target *os.File, t *TagContext) (bool, e
 	}
 	target.Seek(0, 0)
 
-	tbuf, err := ioutil.ReadFile(filepath.Join(t.templatePath, "dockerfile.txt"))
+	tbuf, err := os.ReadFile(filepath.Join(t.templatePath, "dockerfile.txt"))
 	if err != nil {
 		return false, err
 	}

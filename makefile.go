@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,7 +12,7 @@ type makefileApplier struct {
 }
 
 func (g *makefileApplier) CheckHeader(target *os.File, t *TagContext) (bool, error) {
-	tbuf, err := ioutil.ReadFile(filepath.Join(t.templatePath, "makefile.txt"))
+	tbuf, err := os.ReadFile(filepath.Join(t.templatePath, "makefile.txt"))
 	if err != nil {
 		return false, err
 	}
@@ -53,7 +52,7 @@ func (g *makefileApplier) ApplyHeader(path string, t *TagContext) error {
 		return nil
 	}
 
-	//Reset the read pointers to begining of file.
+	// Reset the read pointers to begining of file.
 	t.templateFiles.mTemplateFile.Seek(0, 0)
 	file.Seek(0, 0)
 
