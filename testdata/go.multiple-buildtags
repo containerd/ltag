@@ -1,0 +1,7 @@
+//go:build (amd64 || arm64) && !static_build && !gccgo
+// +build amd64 arm64
+// +build !static_build
+// +build !gccgo
+
+// Package plugin does something.
+package plugin
