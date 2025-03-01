@@ -15,6 +15,10 @@ Prepends project files with given template.
 go install github.com/kunalkushwaha/ltag@latest
 ```
 
+> [!NOTE]
+>
+> The module name is planned to be renamed to `github.com/containerd/ltag`.
+
 #### Usage
 
 ``` console
