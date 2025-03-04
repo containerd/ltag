@@ -12,12 +12,12 @@ Prepends project files with given template.
 #### Install
 
 ```
-go install github.com/kunalkushwaha/ltag@latest
+go install github.com/containerd/ltag@latest
 ```
 
 > [!NOTE]
 >
-> The module name is planned to be renamed to `github.com/containerd/ltag`.
+> The module name was `github.com/kunalkushwaha/ltag` until v0.2.6.
 
 #### Usage
 
