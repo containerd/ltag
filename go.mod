@@ -1,4 +1,3 @@
-// Deprecated: the module is planned to be renamed to github.com/containerd/ltag
-module github.com/kunalkushwaha/ltag
+module github.com/containerd/ltag
 
 go 1.17
