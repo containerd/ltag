@@ -26,7 +26,10 @@ type Applier interface {
 
 // TagContext keeps context info for Applier
 type TagContext struct {
+	ppath         string
 	excludeList   []string
+	excludeDirs   []string
+	excludeFiles  []string
 	templatePath  string
 	templateFiles TemplateFiles
 	dryRun        bool
@@ -44,6 +47,8 @@ type TemplateFiles struct {
 func main() {
 	ppath := flag.String("path", ".", "project path")
 	excludes := flag.String("excludes", "vendor", "exclude folders")
+	excludedirs := flag.String("exclude-dirs", ".git .svn vendor", "exclude dirs matching with glob patterns")
+	excludefiles := flag.String("exclude-files", "LICENSE MAINTAINERS", "exclude files matching with glob patterns")
 	tpath := flag.String("t", "./template", "template files path")
 	dryRun := flag.Bool("check", false, "check files missing header")
 	verbose := flag.Bool("v", false, "verbose output")
@@ -82,6 +87,8 @@ func main() {
 	}
 
 	excludeList := strings.Split(*excludes, " ")
+	excludeDirs := strings.Split(*excludedirs, " ")
+	excludeFiles := strings.Split(*excludefiles, " ")
 
 	templateFiles := TemplateFiles{
 		mTemplateFile:  makeTFile,
@@ -90,10 +97,14 @@ func main() {
 		dTemplateFile:  dTFile}
 
 	t := TagContext{
+		ppath:         *ppath,
 		excludeList:   excludeList,
+		excludeDirs:   excludeDirs,
+		excludeFiles:  excludeFiles,
 		templateFiles: templateFiles,
 		templatePath:  *tpath,
-		dryRun:        *dryRun}
+		dryRun:        *dryRun,
+	}
 
 	if err = filepath.Walk(*ppath, t.tagFiles); err != nil {
 		panic(err)
@@ -118,8 +129,25 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 	var applier Applier
 	processed := false
 
+	relpath, err := filepath.Rel(t.ppath, path)
+	if err != nil {
+		return err
+	}
+
 	if (f.Mode() & os.ModeSymlink) != 0 { // skip symlinks
 		return nil
+	}
+
+	if f.IsDir() {
+		for _, dir := range t.excludeDirs {
+			if matched, err := filepath.Match(dir, relpath); err != nil {
+				return err
+			} else {
+				if matched {
+					return filepath.SkipDir
+				}
+			}
+		}
 	}
 
 	if (f.Name() == ".git" || f.Name() == ".svn" || f.Name() == "..") && f.IsDir() {
@@ -130,6 +158,18 @@ func (t *TagContext) tagFiles(path string, f os.FileInfo, err error) error {
 		for _, exclude := range t.excludeList {
 			if f.Name() == exclude {
 				return filepath.SkipDir
+			}
+		}
+	}
+
+	if !f.IsDir() && f.Size() > 0 {
+		for _, file := range t.excludeFiles {
+			if matched, err := filepath.Match(file, relpath); err != nil {
+				return err
+			} else {
+				if matched {
+					return nil
+				}
 			}
 		}
 	}
